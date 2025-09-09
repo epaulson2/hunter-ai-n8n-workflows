@@ -1,0 +1,84 @@
+{
+  "name": "Hunter AI GET Working Solution",
+  "nodes": [
+    {
+      "id": "get-webhook",
+      "name": "Simple GET Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 200],
+      "parameters": {
+        "path": "get-working",
+        "httpMethod": "GET",
+        "responseMode": "responseNode"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "package-selection",
+      "name": "Package Business Selection",
+      "type": "n8n-nodes-base.code",
+      "position": [400, 200],
+      "parameters": {
+        "jsCode": "// Handle GET parameters\nconst queryParams = $input.first().json.query || {};\nconst content = queryParams.content || $input.first().json.content || 'Huntersville Community Update';\nconst businessCategories = queryParams.business_categories || $input.first().json.business_categories || ['restaurant', 'retail'];\n\n// Ensure businessCategories is an array\nconst categories = Array.isArray(businessCategories) ? businessCategories : [businessCategories];\n\n// Validated package data\nconst availableBusinesses = [\n  {\n    business_id: 3,\n    business_name: 'Huntersville Hardware',\n    category: 'retail',\n    tier_level: 3,\n    credits_remaining: 220,\n    priority_level: 9,\n    package_type: 'enterprise',\n    mention_cost: 4.80\n  },\n  {\n    business_id: 2,\n    business_name: 'Lake Norman Brewing',\n    category: 'restaurant',\n    tier_level: 2,\n    credits_remaining: 82,\n    priority_level: 7,\n    package_type: 'premium',\n    mention_cost: 4.80\n  },\n  {\n    business_id: 1,\n    business_name: 'Main Street Diner',\n    category: 'restaurant',\n    tier_level: 1,\n    credits_remaining: 41,\n    priority_level: 5,\n    package_type: 'basic',\n    mention_cost: 4.80\n  }\n];\n\nconst selectedBusinesses = availableBusinesses\n  .filter(b => categories.includes(b.category) && b.credits_remaining > 0)\n  .sort((a, b) => b.priority_level - a.priority_level);\n\nreturn [{\n  content: content,\n  businesses: selectedBusinesses,\n  method_used: 'GET',\n  categories_requested: categories,\n  timestamp: new Date().toISOString()\n}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "generate-article",
+      "name": "Generate Article",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 200],
+      "parameters": {
+        "jsCode": "const content = $input.first().json.content;\nconst businesses = $input.first().json.businesses || [];\n\nlet article = \`# \${content}\\n\\n\`;\narticle += 'Huntersville continues to thrive as a vibrant community where local businesses play an essential role in our daily lives. ';\n\nbusinesses.forEach(business => {\n  if (business.package_type === 'enterprise') {\n    article += \`For residents seeking quality home improvement solutions, \${business.business_name} has established itself as a trusted cornerstone of our community, offering expertise and reliability that locals have come to depend on. \`;\n  } else if (business.package_type === 'premium') {\n    article += \`When it comes to exceptional dining experiences, \${business.business_name} consistently delivers outstanding service and atmosphere that brings the community together. \`;\n  } else if (business.package_type === 'basic') {\n    article += \`\${business.business_name} provides a welcoming local dining option that adds to our neighborhood's charm. \`;\n  }\n});\n\narticle += '\\n\\nOur thriving local business community continues to grow and evolve, contributing to the unique character that makes Huntersville such a special place to call home.';\n\nconst mentions = businesses.map(b => ({\n  business_name: b.business_name,\n  package_type: b.package_type,\n  mention_cost: b.mention_cost,\n  priority_level: b.priority_level\n}));\n\nconst revenue = mentions.reduce((sum, m) => sum + m.mention_cost, 0);\nconst generationCost = 0.013;\nconst roi = generationCost > 0 ? ((revenue - generationCost) / generationCost * 100) : 0;\n\nreturn [{\n  success: true,\n  article: article,\n  business_mentions: mentions.length,\n  cost_analysis: {\n    generation_cost: generationCost,\n    revenue: revenue,\n    net_value: revenue - generationCost,\n    roi_percentage: roi\n  },\n  mentioned_businesses: mentions,\n  categories_processed: $input.first().json.categories_requested,\n  method_used: 'GET',\n  webhook_solution: 'get-working',\n  timestamp: new Date().toISOString()\n}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "final-response",
+      "name": "Final Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [800, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Simple GET Webhook": {
+      "main": [[
+        {
+          "node": "Package Business Selection",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Generate Article": {
+      "main": [[
+        {
+          "node": "Final Response",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Package Business Selection": {
+      "main": [[
+        {
+          "node": "Generate Article",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  }
+}

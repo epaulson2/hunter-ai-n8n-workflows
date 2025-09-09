@@ -1,0 +1,46 @@
+{
+  "name": "Hunter AI Simple Test",
+  "nodes": [
+    {
+      "id": "test-webhook",
+      "name": "Test Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 200],
+      "parameters": {
+        "path": "simple-test",
+        "httpMethod": "GET",
+        "responseMode": "responseNode"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "test-response",
+      "name": "Test Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [400, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: 'N8N Cloud webhook working!',\n  package_system_ready: true,\n  webhook_method: 'GET',\n  timestamp: new Date().toISOString(),\n  next_step: 'Import enhanced-package-workflow.json for full functionality'\n} }}"
+      },
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Test Webhook": {
+      "main": [[
+        {
+          "node": "Test Response",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  }
+}
