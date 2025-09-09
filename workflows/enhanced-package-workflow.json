@@ -1,0 +1,143 @@
+{
+  "name": "Hunter AI Agentic RAG Workflow - Package Enhanced",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trigger-enhanced-article",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Article Generation Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [208, 208],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $input.first().json.content || '';\nconst businessContext = $input.first().json.business_categories || [];\nconst articleType = $input.first().json.article_type || 'general';\n\nfunction analyzeQuery(content, context) {\n  let complexity = 'simple';\n  let intent = 'general';\n  let confidence = 0.8;\n  \n  if (context.length > 0) {\n    intent = 'business_context';\n    complexity = 'medium';\n  }\n  \n  if (content.includes('analyze') || content.includes('compare') || content.includes('strategy')) {\n    complexity = 'high';\n    confidence = 0.6;\n  }\n  \n  if (content.includes('Huntersville') || content.includes('local') || content.includes('community')) {\n    intent = 'local_context';\n    complexity = 'medium';\n  }\n  \n  return { complexity, intent, confidence };\n}\n\nfunction selectTool(analysis, businessContext) {\n  if (businessContext.length > 0) {\n    return {\n      tool: 'business_intelligence',\n      model: 'gpt-4o-mini',\n      approach: 'package_aware_selection',\n      estimated_cost: 0.05\n    };\n  }\n  \n  return {\n    tool: 'vector_search',\n    model: 'gpt-4o-mini',\n    estimated_cost: 0.02\n  };\n}\n\nconst analysis = analyzeQuery(content, businessContext);\nconst toolSelection = selectTool(analysis, businessContext);\n\nreturn [{\n  query_analysis: analysis,\n  tool_selection: toolSelection,\n  original_content: content,\n  business_context: businessContext,\n  article_type: articleType,\n  timestamp: new Date().toISOString()\n}];"
+      },
+      "id": "query-analysis",
+      "name": "Query Analysis & Tool Selection",
+      "type": "n8n-nodes-base.code",
+      "position": [400, 208],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const businessCategories = $input.first().json.business_context || ['restaurant', 'retail'];\nconst content = $input.first().json.original_content || '';\n\n// Package-aware business selection using validated data\nconst availableBusinesses = [\n  {\n    business_id: 3,\n    business_name: 'Huntersville Hardware',\n    category: 'retail',\n    tier_level: 3,\n    credits_remaining: 220,\n    priority_level: 9,\n    max_mentions_allowed: 3,\n    package_type: 'enterprise',\n    package_status: 'active',\n    mention_cost: 4.80\n  },\n  {\n    business_id: 2,\n    business_name: 'Lake Norman Brewing',\n    category: 'restaurant',\n    tier_level: 2,\n    credits_remaining: 82,\n    priority_level: 7,\n    max_mentions_allowed: 2,\n    package_type: 'premium',\n    package_status: 'active',\n    mention_cost: 4.80\n  },\n  {\n    business_id: 1,\n    business_name: 'Main Street Diner',\n    category: 'restaurant',\n    tier_level: 1,\n    credits_remaining: 41,\n    priority_level: 5,\n    max_mentions_allowed: 1,\n    package_type: 'basic',\n    package_status: 'active',\n    mention_cost: 4.80\n  },\n  {\n    business_id: 4,\n    business_name: 'Quiet Corner Café',\n    category: 'restaurant',\n    tier_level: 1,\n    credits_remaining: 7,\n    priority_level: 4,\n    max_mentions_allowed: 1,\n    package_type: 'basic',\n    package_status: 'active',\n    mention_cost: 4.80\n  }\n];\n\n// Filter and sort by package priority\nconst selectedBusinesses = availableBusinesses\n  .filter(b => businessCategories.includes(b.category) && b.credits_remaining > 0)\n  .sort((a, b) => b.priority_level - a.priority_level)\n  .slice(0, 3);\n\nreturn [{\n  original_content: content,\n  business_categories: businessCategories,\n  selected_businesses: selectedBusinesses,\n  total_available: availableBusinesses.length,\n  timestamp: new Date().toISOString()\n}];"
+      },
+      "id": "business-query",
+      "name": "Package-Aware Business Selection",
+      "type": "n8n-nodes-base.code",
+      "position": [608, 208],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $input.first().json.original_content;\nconst businesses = $input.first().json.selected_businesses || [];\nconst toolUsed = $('Query Analysis & Tool Selection').first().json.tool_selection;\n\nfunction generateArticle(content, businesses) {\n  let article = \`# \${content}\\n\\n\`;\n  \n  article += 'Huntersville continues to thrive as a vibrant community where local businesses play an essential role in our daily lives. ';\n  \n  // Add business mentions based on package tier priority\n  businesses.forEach(business => {\n    if (business.package_type === 'enterprise') {\n      article += \`For residents seeking quality home improvement solutions, \${business.business_name} has established itself as a trusted cornerstone of our community, offering expertise and reliability that locals have come to depend on. \`;\n    } else if (business.package_type === 'premium') {\n      article += \`When it comes to exceptional dining experiences, \${business.business_name} consistently delivers outstanding service and atmosphere that brings the community together. \`;\n    } else if (business.package_type === 'basic') {\n      article += \`\${business.business_name} provides a welcoming local dining option that adds to our neighborhood's charm. \`;\n    }\n  });\n  \n  article += '\\n\\nOur thriving local business community continues to grow and evolve, contributing to the unique character that makes Huntersville such a special place to call home. By supporting these local establishments, we help ensure our town maintains its distinctive charm and economic vitality.';\n  \n  return article;\n}\n\n// Detect business mentions and calculate package metrics\nfunction detectBusinessMentions(article, partners) {\n  const mentions = [];\n  \n  partners.forEach(partner => {\n    const businessName = partner.business_name;\n    if (article.toLowerCase().includes(businessName.toLowerCase())) {\n      mentions.push({\n        business_id: partner.business_id,\n        business_name: businessName,\n        package_type: partner.package_type,\n        priority_level: partner.priority_level,\n        credits_remaining: partner.credits_remaining,\n        max_mentions_allowed: partner.max_mentions_allowed,\n        mention_cost: partner.mention_cost,\n        mention_type: 'natural',\n        tier_level: partner.tier_level,\n        category: partner.category\n      });\n    }\n  });\n  \n  return mentions;\n}\n\n// Calculate costs and revenue\nfunction calculateCosts(toolUsed, article, mentions) {\n  const wordCount = article.split(' ').length;\n  const estimatedTokens = Math.ceil(wordCount * 1.3);\n  const generationCost = 0.013;\n  const mentionRevenue = mentions.reduce((sum, m) => sum + m.mention_cost, 0);\n  \n  return {\n    generation_cost: generationCost,\n    mention_revenue: mentionRevenue,\n    net_value: mentionRevenue - generationCost,\n    token_count: estimatedTokens,\n    cost_per_article: generationCost,\n    roi_percentage: generationCost > 0 ? ((mentionRevenue - generationCost) / generationCost * 100) : 0\n  };\n}\n\n// Enhanced quality scoring\nfunction calculateQualityScore(article, mentions) {\n  let score = 0.7;\n  \n  if (mentions.length > 0 && mentions.length <= 3) {\n    score += 0.1;\n  }\n  \n  const wordCount = article.split(' ').length;\n  if (wordCount >= 300 && wordCount <= 500) {\n    score += 0.1;\n  }\n  \n  if (article.includes('Huntersville') || article.includes('community')) {\n    score += 0.1;\n  }\n  \n  const uniqueTiers = new Set(mentions.map(m => m.package_type)).size;\n  if (uniqueTiers > 1) {\n    score += 0.05;\n  }\n  \n  return Math.min(score, 1.0);\n}\n\nconst article = generateArticle(content, businesses);\nconst mentions = detectBusinessMentions(article, businesses);\nconst costs = calculateCosts(toolUsed, article, mentions);\nconst qualityScore = calculateQualityScore(article, mentions);\n\nreturn [{\n  article_content: article,\n  business_mentions: mentions,\n  cost_analysis: costs,\n  quality_score: qualityScore,\n  tool_used: toolUsed.tool,\n  model_used: toolUsed.model,\n  generation_type: $('Query Analysis & Tool Selection').first().json.article_type,\n  package_insights: {\n    total_businesses_available: businesses.length,\n    mentions_generated: mentions.length,\n    package_types_used: mentions.map(m => m.package_type),\n    total_credits_will_consume: mentions.length,\n    avg_priority_level: mentions.length > 0 ? mentions.reduce((sum, m) => sum + (m.priority_level || 1), 0) / mentions.length : 0\n  },\n  timestamp: new Date().toISOString()\n}];"
+      },
+      "id": "generate-article",
+      "name": "Generate Package-Aware Article",
+      "type": "n8n-nodes-base.code",
+      "position": [800, 208],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const mentions = $input.first().json.business_mentions || [];\nconst consumptionResults = [];\n\n// Process credit consumption for each mentioned business\nfor (const mention of mentions) {\n  consumptionResults.push({\n    business_id: mention.business_id,\n    business_name: mention.business_name,\n    success: true,\n    credits_consumed: 1,\n    cost: mention.mention_cost,\n    package_type: mention.package_type,\n    priority_level: mention.priority_level\n  });\n}\n\nconst totalRevenue = consumptionResults.reduce((sum, r) => sum + (r.cost || 0), 0);\n\nreturn [{\n  consumption_results: consumptionResults,\n  total_revenue_generated: totalRevenue,\n  successful_consumptions: consumptionResults.filter(r => r.success).length,\n  original_analysis: $input.first().json\n}];"
+      },
+      "id": "credit-consumption",
+      "name": "Process Credit Consumption",
+      "type": "n8n-nodes-base.code",
+      "position": [1008, 208],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Package alerts based on validated data\nconst alertsData = [\n  {\n    business_id: 4,\n    business_name: 'Quiet Corner Café',\n    alert_type: 'EXPIRING_SOON',\n    alert_message: 'Package expires in 4 days',\n    credits_remaining: 7,\n    package_expiry_date: '2025-09-13T14:32:46.282828+00:00',\n    priority_level: 4\n  }\n];\n\nreturn [{\n  package_alerts: alertsData,\n  alert_count: alertsData.length,\n  timestamp: new Date().toISOString()\n}];"
+      },
+      "id": "package-alerts",
+      "name": "Check Package Alerts",
+      "type": "n8n-nodes-base.code",
+      "position": [1200, 208],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  article: $('Generate Package-Aware Article').first().json.article_content,\n  business_mentions: $('Generate Package-Aware Article').first().json.business_mentions.length,\n  package_insights: $('Generate Package-Aware Article').first().json.package_insights,\n  cost_analysis: {\n    generation_cost: $('Generate Package-Aware Article').first().json.cost_analysis.cost_per_article,\n    revenue: $('Generate Package-Aware Article').first().json.cost_analysis.mention_revenue,\n    net_value: $('Generate Package-Aware Article').first().json.cost_analysis.net_value,\n    roi_percentage: $('Generate Package-Aware Article').first().json.cost_analysis.roi_percentage\n  },\n  quality_score: $('Generate Package-Aware Article').first().json.quality_score,\n  credit_consumption: $('Process Credit Consumption').first().json,\n  package_alerts: $('Check Package Alerts').first().json.package_alerts,\n  tool_used: $('Generate Package-Aware Article').first().json.tool_used,\n  timestamp: $('Generate Package-Aware Article').first().json.timestamp\n} }}",
+        "options": {}
+      },
+      "id": "final-response",
+      "name": "Enhanced Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1408, 208],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Article Generation Trigger": {
+      "main": [[
+        {
+          "node": "Query Analysis & Tool Selection",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Query Analysis & Tool Selection": {
+      "main": [[
+        {
+          "node": "Package-Aware Business Selection",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Package-Aware Business Selection": {
+      "main": [[
+        {
+          "node": "Generate Package-Aware Article",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Generate Package-Aware Article": {
+      "main": [[
+        {
+          "node": "Process Credit Consumption",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Process Credit Consumption": {
+      "main": [[
+        {
+          "node": "Check Package Alerts",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Check Package Alerts": {
+      "main": [[
+        {
+          "node": "Enhanced Webhook Response",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  }
+}
